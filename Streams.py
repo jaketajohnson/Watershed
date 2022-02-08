@@ -56,7 +56,7 @@ arcpy.MakeFeatureLayer_management(quarter_sections, "QuarterSections", "SEWMAPOL
 
 def raster_processor(input_folder, output_folder, function_key, raster_format="folder", start_point=0):
     """Template function for the various raster processing functions needed"""
-    Logging.logger.info(f"------{function_key.capitalize()} Start")
+    Logging.logger.info(f"{function_key.capitalize()} Start")
 
     # Check to see if the input key is correct
     allowed_folders = [dtm_split, fill_folder, direction_folder, order_folder, condition_folder, streams_intermediate, streams_final]
@@ -82,20 +82,19 @@ def raster_processor(input_folder, output_folder, function_key, raster_format="f
         dictionary_key = function_dictionary[f"{function_key}"]
 
         # Run the lambda function using the given function key(s)
-        for raster in raster_list:
+        while 0 <= start_point <= (len(raster_list) - 1):
+            for raster in raster_list:
 
-            # Name variables based on current iterator value
-            input_name = os.path.join(input_folder, raster)
-            arcpy.env.extent = input_name
-            if function_key == "streams":
-                current_filename = fr"{function_key}_all"
-            else:
-                current_filename = fr"{function_key}_{start_point:03}"
-            direction_name = os.path.join(direction_folder, f"direction_{start_point:03}")
-            output_name = os.path.join(output_folder, current_filename)
+                # Name variables based on current iterator value
+                input_name = os.path.join(input_folder, raster)
+                arcpy.env.extent = input_name
+                if function_key == "streams":
+                    current_filename = fr"{function_key}_all"
+                else:
+                    current_filename = fr"{function_key}_{start_point:03}"
 
-            # Run the function
-            while 0 <= start_point <= (len(raster_list) - 1):
+                direction_name = os.path.join(direction_folder, f"direction_{start_point:03}")
+                output_name = os.path.join(output_folder, current_filename)
                 if dictionary_key["save"]:
                     raster_function_object = dictionary_key["function"](input_name)
                     raster_function_object.save(output_name)
@@ -103,10 +102,10 @@ def raster_processor(input_folder, output_folder, function_key, raster_format="f
                     dictionary_key["function"](input_name, direction_name, output_name)
                 else:
                     raise ValueError("Incorrect save key")
-            Logging.logger.info(f"{current_filename} Complete")
-            start_point += 1
+                start_point += 1
+                Logging.logger.info(f"{current_filename} Complete")
 
-        Logging.logger.info(f"------{function_key.capitalize()} Complete")
+        Logging.logger.info(f"{function_key.capitalize()} Complete")
     else:
         raise ValueError("Incorrect parameters")
 

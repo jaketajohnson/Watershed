@@ -25,6 +25,9 @@ sys.path.insert(0, "Y:/Scripts")
 import Logging
 
 
+# Environments
+arcpy.env.overwriteOutput = True
+
 # DTM Folders
 directory = r"C:\Users\jtjohnson\Documents\Python\DEM"
 dtm_split = os.path.join(directory, "DTM_Split")
@@ -47,13 +50,10 @@ cadastral_reference = os.path.join(sde, "imSPFLD.COSPW.CadastralReference")
 quarter_sections = os.path.join(cadastral_reference, "imSPFLD.COSPW.PLSSQuarterSection")
 arcpy.MakeFeatureLayer_management(quarter_sections, "QuarterSections", "SEWMAPOLD <> ''")
 
-# Environments
-arcpy.env.overwriteOutput = True
-
 
 def feature_processor(input_dataset, output_dataset, function_key, feature=True, start_point=0):
     """Template function for the various raster processing functions needed"""
-    Logging.logger(f"{function_key.capitalize()} Start")
+    Logging.logger.info(f"{function_key.capitalize()} Start")
 
     # Check to see if the input key is correct
     allowed_folders = [dtm_split, contours_lines, contours_lines_simplified, contours_lines_smoothed, contours_polygons]
@@ -72,38 +72,35 @@ def feature_processor(input_dataset, output_dataset, function_key, feature=True,
 
         # Dictionary of each desired process containing a dictionary of the function and if it needs to be save
         function_dictionary = {
-            "contours_lines": lambda feature_input, feature_output: arcpy.sa.Contour(feature_input, feature_output, 1, 564, max_vertices_per_feature=1000000),
-            "contours_lines_simplified": lambda feature_input, feature_output: arcpy.SimplifyLine_cartography(feature_input, feature_output, "POINT_REMOVE", 5, "RESOLVE_ERRORS", "NO_KEEP"),
-            "contours_lines_smoothed": lambda feature_input, feature_output: arcpy.SmoothLine_cartography(feature_input, feature_output, "PAEK", 5, error_option="RESOLVE_ERRORS"),
-            "contours_polygons": lambda feature_input, feature_output: arcpy.sa.Contour(feature_input, feature_output, 3, 564, contour_type="CONTOUR_POLYGON", max_vertices_per_feature=1000000)
+            "contours_lines": lambda feature_input, feature_output: arcpy.sa.Contour(feature_input, feature_output, 1, 500, max_vertices_per_feature=1000000),
+            "contours_lines_simplified": lambda feature_input, feature_output: arcpy.SimplifyLine_cartography(feature_input, feature_output, "POINT_REMOVE", 1, "RESOLVE_ERRORS", "NO_KEEP"),
+            "contours_lines_smoothed": lambda feature_input, feature_output: arcpy.SmoothLine_cartography(feature_input, feature_output, "PAEK", 1, error_option="RESOLVE_ERRORS"),
+            "contours_polygons": lambda feature_input, feature_output: arcpy.sa.Contour(feature_input, feature_output, 1, 500, contour_type="CONTOUR_POLYGON", max_vertices_per_feature=1000000)
         }
         dictionary_key = function_dictionary[f"{function_key}"]
 
         # Run the lambda function using the given function key(s)
-        for feature in feature_list:
+        while 0 <= start_point <= (len(feature_list) - 1):
+            for feature in feature_list:
 
-            # Name variables based on current iterator value
-            input_name = os.path.join(input_dataset, feature)
-            current_filename = fr"{function_key}_{start_point:03}"
-            output_name = os.path.join(output_dataset, current_filename)
-
-            # Run the function
-            while 0 <= start_point <= (len(feature_list) - 1):
+                # Name variables based on current iterator value
+                input_name = os.path.join(input_dataset, feature)
+                current_filename = fr"{function_key}_{start_point:03}"
+                output_name = os.path.join(output_dataset, current_filename)
                 Logging.logger.info(f"{current_filename} Start")
                 if function_key == "contours_lines_simplified":
-                    selected_contours = arcpy.SelectLayerByAttribute_management(input_name, "NEW_SELECTION", "Shape_Length > 350")
+                    selected_contours = arcpy.SelectLayerByAttribute_management(input_name, "NEW_SELECTION", "Shape_Length >= 60")
                     dictionary_key(selected_contours, output_name)
                 else:
                     dictionary_key(input_name, output_name)
-            start_point += 1
-            Logging.logger.info(f"{current_filename} Complete")
-
+                start_point += 1
+                Logging.logger.info(f"{current_filename} Complete")
         Logging.logger.info(f"{function_key.capitalize()} Complete")
     else:
         raise ValueError("Incorrect input parameters")
 
 
-@Logging.insert("RenameMove")
+@Logging.insert("RenameMove", 1)
 def rename_move(input_dataset, output_dataset, function_key, start_point=0):
     """Take the final dataset and rename each feature using the parent quarter section for easy navigation"""
     Logging.logger.info(f"------START {function_key.capitalize()}")
@@ -130,7 +127,7 @@ def rename_move(input_dataset, output_dataset, function_key, start_point=0):
                 quarter_section_name = row[0].replace("-", "")
                 name = f"{name_prefix}_{quarter_section_name}"
                 input_path = os.path.join(input_dataset, feature)
-                arcpy.FeatureClassToFeatureClass_conversion(input_path, output_dataset, name, "Shape_Length > 250")
+                arcpy.FeatureClassToFeatureClass_conversion(input_path, output_dataset, name)
                 Logging.logger.info(f"{name} Complete")
     Logging.logger.info(f"------FINISH {function_key.capitalize()}")
 
@@ -139,7 +136,7 @@ if __name__ == "__main__":
     traceback_info = traceback.format_exc()
     try:
         Logging.logger.info("Script Execution Started")
-        feature_processor(dtm_split, contours_lines, "contours_lines", False)
+        # feature_processor(dtm_split, contours_lines, "contours_lines", False)
         feature_processor(contours_lines, contours_lines_simplified, "contours_lines_simplified")
         feature_processor(contours_lines_simplified, contours_lines_smoothed, "contours_lines_smoothed")
         feature_processor(dtm_split, contours_polygons, "contours_polygons", False)

@@ -35,7 +35,7 @@ quarter_sections = os.path.join(cadastral_reference, "imSPFLD.COSPW.PLSSQuarterS
 arcpy.MakeFeatureLayer_management(quarter_sections, "QuarterSections", "SEWMAPOLD <> ''")
 
 
-@Logging.logger("Delete")
+@Logging.insert("Delete", 1)
 def raster_delete():
     """Delete the current rasters in the output folder"""
     if len(os.listdir(dtm_split)) > 0:
@@ -43,7 +43,7 @@ def raster_delete():
             os.remove(os.path.join(dtm_split, f"{file}"))
 
 
-@Logging.logger("Split")
+@Logging.insert("Split", 1)
 def raster_split():
     """Split the DTM into manageable cell sizes and limit it to a certain extent rather than the entire county"""
     arcpy.SplitRaster_management(dtm, dtm_split, "dtm_split_", "POLYGON_FEATURES", overlap=1, clip_type="FEATURE_CLASS", split_polygon_feature_class="QuarterSections", template_extent="QuarterSections")
